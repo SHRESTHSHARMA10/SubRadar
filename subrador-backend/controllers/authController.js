@@ -3,10 +3,12 @@ const jwt = require("jsonwebtoken");
 const db = require("../db");
 const { Resend } = require("resend");
 
-// Initialize Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// REGISTER (Step 1: Save user & Send OTP)
+// ⚠️ ONLY YOUR EMAIL (Resend free limitation)
+const DEMO_EMAIL = process.env.EMAIL_USER;
+
+// REGISTER
 const register = async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -27,32 +29,30 @@ const register = async (req, res) => {
       [name, email, password_hash, otp]
     );
 
-    // ✅ Send OTP via Resend (FREE, no domain needed)
-    console.log("RESEND KEY EXISTS:", !!process.env.RESEND_API_KEY);
+    // 🔥 OTP MAIL (DEMO ONLY)
     await resend.emails.send({
       from: "SubRadar <onboarding@resend.dev>",
-      to: email,
-      subject: "🚨 Verify your SubRadar Account",
+      to: DEMO_EMAIL,
+      subject: "🔐 SubRadar OTP (Demo Mode)",
       html: `
-        <h3>Welcome to SubRadar, ${name}!</h3>
-        <p>Your 6-digit verification code is:</p>
+        <h3>OTP for ${email}</h3>
         <h2>${otp}</h2>
-        <p>Enter this code on the verification screen.</p>
+        <p>(Sent to demo inbox due to Resend free tier)</p>
       `,
     });
 
-    res.status(201).json({ message: "OTP sent to email", email });
+    res.status(201).json({
+      message: "OTP sent (check demo email)",
+      email,
+    });
 
   } catch (err) {
     console.error("❌ Registration Error:", err);
-    res.status(500).json({
-      message: "Registration failed",
-      error: err.message,
-    });
+    res.status(500).json({ message: "Registration failed" });
   }
 };
 
-// VERIFY OTP (Step 2: Check OTP & Give Token)
+// VERIFY OTP
 const verifyOTP = async (req, res) => {
   const { email, otp } = req.body;
 
@@ -61,14 +61,15 @@ const verifyOTP = async (req, res) => {
       "SELECT * FROM users WHERE email = ?",
       [email]
     );
-    if (users.length === 0) {
+
+    if (!users.length) {
       return res.status(400).json({ message: "User not found" });
     }
 
     const user = users[0];
 
     if (user.otp !== otp) {
-      return res.status(400).json({ message: "Invalid or incorrect OTP" });
+      return res.status(400).json({ message: "Invalid OTP" });
     }
 
     await db.query(
@@ -82,17 +83,11 @@ const verifyOTP = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.json({
-      token,
-      user: { id: user.id, name: user.name, email: user.email },
-    });
+    res.json({ token });
 
   } catch (err) {
-    console.error("❌ Verification Error:", err);
-    res.status(500).json({
-      message: "Server error during verification",
-      error: err.message,
-    });
+    console.error("❌ Verify Error:", err);
+    res.status(500).json({ message: "Verification failed" });
   }
 };
 
@@ -105,21 +100,20 @@ const login = async (req, res) => {
       "SELECT * FROM users WHERE email = ?",
       [email]
     );
-    if (users.length === 0) {
-      return res.status(400).json({ message: "Invalid email or password" });
+
+    if (!users.length) {
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const user = users[0];
 
     if (!user.is_verified) {
-      return res.status(403).json({
-        message: "Account not verified. Please check your email for the OTP.",
-      });
+      return res.status(403).json({ message: "Verify OTP first" });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid email or password" });
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) {
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const token = jwt.sign(
@@ -128,18 +122,12 @@ const login = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.json({
-      token,
-      user: { id: user.id, name: user.name, email: user.email },
-    });
+    res.json({ token });
 
   } catch (err) {
     console.error("❌ Login Error:", err);
-    res.status(500).json({
-      message: "Login failed",
-      error: err.message,
-    });
+    res.status(500).json({ message: "Login failed" });
   }
 };
 
-module.exports = { register, login, verifyOTP };
+module.exports = { register, verifyOTP, login };
