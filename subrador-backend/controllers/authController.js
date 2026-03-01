@@ -28,6 +28,7 @@ const register = async (req, res) => {
     );
 
     // ✅ Send OTP via Resend (FREE, no domain needed)
+    console.log("RESEND KEY EXISTS:", !!process.env.RESEND_API_KEY);
     await resend.emails.send({
       from: "SubRadar <onboarding@resend.dev>",
       to: email,
