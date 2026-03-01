@@ -73,8 +73,9 @@ const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 465, // The secure cloud port
-  secure: true, // Strictly enforce SSL encryption
+  port: 587, // Changed from 465 to 587
+  secure: false, // MUST be false for 587
+  requireTLS: true, // Forces it to encrypt the tunnel
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
