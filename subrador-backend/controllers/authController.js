@@ -3,19 +3,20 @@ const jwt = require("jsonwebtoken");
 const db = require("../db");
 const nodemailer = require("nodemailer");
 
-// Updated Transporter with Cloud-Ready Timeouts
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587, 
   secure: false, 
   requireTLS: true, 
-  connectionTimeout: 10000, // 10 seconds to establish connection
-  greetingTimeout: 5000,    // 5 seconds to wait for Gmail's hello
-  socketTimeout: 10000,     // 10 seconds for data transfer
+  connectionTimeout: 10000,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  // CRITICAL: This forces IPv4 and bypasses the ENETUNREACH error
+  tls: {
+    family: 4 
+  }
 });
 
 // REGISTER (Step 1: Save user & Send OTP)

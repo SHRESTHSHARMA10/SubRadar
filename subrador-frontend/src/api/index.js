@@ -1,4 +1,5 @@
 const BASE_URL = "https://subradar-backend.onrender.com/api";
+
 // Helper to grab the token from local storage
 const getToken = () => localStorage.getItem("token");
 
@@ -9,6 +10,7 @@ const getAuthHeaders = () => ({
 });
 
 export const registerUser = async (userData) => {
+  // Routes now correctly point to /api/auth/register
   const res = await fetch(`${BASE_URL}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -27,6 +29,7 @@ export const loginUser = async (userData) => {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 };
+
 export const verifyOTP = async (data) => {
   const res = await fetch(`${BASE_URL}/auth/verify`, {
     method: "POST",
@@ -36,6 +39,7 @@ export const verifyOTP = async (data) => {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 };
+
 export const getSubscriptions = async () => {
   const res = await fetch(`${BASE_URL}/subscriptions`, {
     headers: getAuthHeaders(),
