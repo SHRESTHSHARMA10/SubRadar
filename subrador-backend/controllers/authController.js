@@ -71,9 +71,10 @@ const jwt = require("jsonwebtoken");
 const db = require("../db");
 const nodemailer = require("nodemailer");
 
-// Setup the Mailman using your existing .env variables
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 465, // The secure cloud port
+  secure: true, // Strictly enforce SSL encryption
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
