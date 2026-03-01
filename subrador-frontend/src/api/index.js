@@ -1,4 +1,4 @@
-const BASE_URL = "https://subradar-backend.onrender.com/api";
+const BASE_URL = "https://subradar-production.up.railway.app/api";
 
 // Helper to grab the token from local storage
 const getToken = () => localStorage.getItem("token");
