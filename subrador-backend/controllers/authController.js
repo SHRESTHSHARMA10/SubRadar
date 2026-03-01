@@ -1,81 +1,17 @@
-// const bcrypt = require("bcryptjs");
-// const jwt = require("jsonwebtoken");
-// const db = require("../db");
-
-// // REGISTER
-// const register = async (req, res) => {
-//   const { name, email, password } = req.body;
-//   try {
-//     const [existing] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
-//     if (existing.length > 0) {
-//       return res.status(400).json({ message: "Email already registered" });
-//     }
-
-//     const password_hash = await bcrypt.hash(password, 10);
-
-//     const [result] = await db.query(
-//       "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-//       [name, email, password_hash]
-//     );
-
-//     const token = jwt.sign(
-//       { id: result.insertId, email },
-//       process.env.JWT_SECRET,
-//       { expiresIn: "7d" }
-//     );
-
-//     res.status(201).json({
-//       token,
-//       user: { id: result.insertId, name, email }
-//     });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Server error" });
-//   }
-// };
-
-// // LOGIN
-// const login = async (req, res) => {
-//   const { email, password } = req.body;
-//   try {
-//     const [users] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
-//     if (users.length === 0) {
-//       return res.status(400).json({ message: "Invalid email or password" });
-//     }
-
-//     const user = users[0];
-//     const isMatch = await bcrypt.compare(password, user.password_hash);
-//     if (!isMatch) {
-//       return res.status(400).json({ message: "Invalid email or password" });
-//     }
-
-//     const token = jwt.sign(
-//       { id: user.id, email: user.email },
-//       process.env.JWT_SECRET,
-//       { expiresIn: "7d" }
-//     );
-
-//     res.json({
-//       token,
-//       user: { id: user.id, name: user.name, email: user.email }
-//     });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Server error" });
-//   }
-// };
-
-// module.exports = { register, login };
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const db = require("../db");
 const nodemailer = require("nodemailer");
 
+// Updated Transporter with Cloud-Ready Timeouts
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 587, // Changed from 465 to 587
-  secure: false, // MUST be false for 587
-  requireTLS: true, // Forces it to encrypt the tunnel
+  port: 587, 
+  secure: false, 
+  requireTLS: true, 
+  connectionTimeout: 10000, // 10 seconds to establish connection
+  greetingTimeout: 5000,    // 5 seconds to wait for Gmail's hello
+  socketTimeout: 10000,     // 10 seconds for data transfer
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
@@ -93,7 +29,6 @@ const register = async (req, res) => {
 
     const password_hash = await bcrypt.hash(password, 10);
     
-    // Generate a random 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     const [result] = await db.query(
@@ -111,11 +46,14 @@ const register = async (req, res) => {
              <p>Enter this code on the registration page to activate your account.</p>`
     });
 
-    // Don't send token yet, just send success message
     res.status(201).json({ message: "OTP sent to email", email });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Registration Error:", err);
+    // This stops the frontend spinner and shows the real error
+    res.status(500).json({ 
+      message: "Registration failed. Email service might be down.", 
+      error: err.message 
+    });
   }
 };
 
@@ -132,15 +70,13 @@ const verifyOTP = async (req, res) => {
       return res.status(400).json({ message: "Invalid or incorrect OTP" });
     }
 
-    // OTP matches! Update database to verified and clear the OTP
     await db.query("UPDATE users SET is_verified = true, otp = NULL WHERE email = ?", [email]);
 
-    // Now generate the JWT token and log them in
     const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
     res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Verification Error:", err);
+    res.status(500).json({ message: "Server error during verification", error: err.message });
   }
 };
 
@@ -153,7 +89,6 @@ const login = async (req, res) => {
 
     const user = users[0];
 
-    // BLOCK unverified users
     if (!user.is_verified) {
       return res.status(403).json({ message: "Account not verified. Please check your email for the OTP." });
     }
@@ -164,8 +99,8 @@ const login = async (req, res) => {
     const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
     res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Login Error:", err);
+    res.status(500).json({ message: "Login failed. Server error.", error: err.message });
   }
 };
 
